@@ -40,9 +40,26 @@ This project enables users to query PDF documents and receive accurate, context-
 
 ##  Project Structure
 
-ai-document-assistant/
-│── app.py
-│── utils.py
-│── requirements.txt
-│── data/
-│ └── sample.pdf
+├── data/               # Source PDF documents
+├── app.py              # Application logic & LLM orchestration
+├── utils.py            # RAG utility functions (Embeddings, FAISS, PDF)
+└── requirements.txt    # Project dependencies
+
+---
+
+##  Installation & Setup
+
+### 1. Clone the repository
+
+git clone https://github.com/BatraBhavye/ai-document-assistant.git
+cd ai-document-assistant
+
+### 2. Install dependencies
+pip install -r requirements.txt
+
+### 3. Install Ollama
+
+Download from: https://ollama.com
+
+Pull a model:
+ollama run phi3
