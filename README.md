@@ -37,3 +37,12 @@ This project enables users to query PDF documents and receive accurate, context-
 - **NumPy**
 
 ---
+
+##  Project Structure
+
+-ai-document-assistant/
+-│── app.py
+-│── utils.py
+-│── requirements.txt
+-│── data/
+-│ └── sample.pdf
