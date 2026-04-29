@@ -1,66 +1,95 @@
-import os
+import streamlit as st
 import ollama
-from utils import load_pdf, chunk_text, create_vector_store, semantic_search
+from utils import load_and_chunk_pdf, create_hybrid_store, hybrid_search
 
+# -- Page Configuration --
+st.set_page_config(page_title="AI Document Assistant", page_icon="📄", layout="centered")
 
-def get_pdf_path():
-    base_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_dir, "data", "sample.pdf")
+st.title("📄 AI Document Assistant")
+st.markdown("Upload a secure PDF and ask questions. Powered by **Local RAG (Ollama + FAISS + BM25)**.")
 
+# -- Session State Management --
+if "messages" not in st.session_state:
+    st.session_state.messages = []
+if "faiss_index" not in st.session_state:
+    st.session_state.faiss_index = None
+if "bm25_index" not in st.session_state:
+    st.session_state.bm25_index = None
+if "chunks" not in st.session_state:
+    st.session_state.chunks = None
 
-def build_context(chunks):
-    """Limit context size to avoid model crashes"""
-    return " ".join(chunks[:2])[:1500]
+# -- Sidebar: File Upload & Processing --
+with st.sidebar:
+    st.header("Document Upload")
+    uploaded_file = st.file_uploader("Upload a PDF", type=["pdf"])
+    
+    if uploaded_file and st.button("Process Document"):
+        with st.spinner("Parsing and building hybrid indexes..."):
+            chunks = load_and_chunk_pdf(uploaded_file)
+            st.session_state.chunks = chunks
+            
+            # Create BOTH Vector and Keyword Stores
+            f_index, b_index, _ = create_hybrid_store(chunks)
+            st.session_state.faiss_index = f_index
+            st.session_state.bm25_index = b_index
+            
+            st.success(f"Processed successfully! Created {len(chunks)} hybrid-searchable chunks.")
 
+# -- Main Chat Interface --
+for message in st.session_state.messages:
+    with st.chat_message(message["role"]):
+        st.markdown(message["content"])
 
-def main():
-    print("Loading document...")
+if prompt := st.chat_input("Ask a question about your document..."):
+    
+    if st.session_state.faiss_index is None:
+        st.warning("Please upload and process a document first.")
+    else:
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.markdown(prompt)
 
-    # Load PDF
-    pdf_path = get_pdf_path()
-    text = load_pdf(pdf_path)
+        # Retrieve context using Hybrid Search
+        with st.spinner("Executing Hybrid Search (Vector + Keyword)..."):
+            relevant_chunks = hybrid_search(
+                prompt, 
+                st.session_state.chunks, 
+                st.session_state.faiss_index, 
+                st.session_state.bm25_index
+            )
+            
+            context = ""
+            for i, chunk in enumerate(relevant_chunks):
+                context += f"--- Source {i+1} (Page {chunk['page']}) ---\n{chunk['text']}\n\n"
 
-    # Chunk text
-    chunks = chunk_text(text)
-    print(f"Chunks created: {len(chunks)}")
+        # Generate response
+        system_prompt = f"""
+        You are a highly accurate enterprise AI assistant. 
+        Answer the user's question using ONLY the context provided below. 
+        
+        CRITICAL INSTRUCTION: You MUST cite your sources in your answer using the page numbers provided in the context. 
+        Format your citations like this: "According to the document (Page X)..." or place [Page X] at the end of the sentence.
+        
+        If the answer is not contained in the context, say "I cannot find the answer in the provided document." 
+        Do not hallucinate.
 
-    # Create vector store
-    index, _ = create_vector_store(chunks)
-    print("Vector store ready.")
+        CONTEXT:
+        {context}
+        """
 
-    # User input
-    question = input("\nAsk a question about the document: ")
+        with st.chat_message("assistant"):
+            with st.spinner("Generating answer..."):
+                response = ollama.chat(
+                    model="phi3",
+                    messages=[
+                        {"role": "system", "content": system_prompt},
+                        {"role": "user", "content": prompt}
+                    ]
+                )
+                answer = response["message"]["content"]
+                st.markdown(answer)
+                
+                with st.expander("View Retrieved Source Context"):
+                    st.write(context)
 
-    # Retrieve relevant chunks
-    relevant_chunks = semantic_search(question, chunks, index)
-
-    # Build context
-    context = build_context(relevant_chunks)
-
-    # Generate response
-    response = ollama.chat(
-        model="phi3",
-        messages=[
-            {
-                "role": "user",
-                "content": f"""
-You are an AI assistant. Answer based only on the given context.
-
-Context:
-{context}
-
-Question:
-{question}
-
-Answer:
-"""
-            }
-        ]
-    )
-
-    print("\nAnswer:\n")
-    print(response["message"]["content"])
-
-
-if __name__ == "__main__":
-    main()
+        st.session_state.messages.append({"role": "assistant", "content": answer})

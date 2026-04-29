@@ -3,3 +3,5 @@ sentence-transformers
 faiss-cpu
 ollama
 numpy
+streamlit
+langchain-text-splitters
