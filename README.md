@@ -1,78 +1,73 @@
-# AI Document Assistant (RAG-Based QA System)
+# AI Document Assistant (Local & Private RAG Pipeline)
 
-An intelligent document question-answering system built using **Retrieval-Augmented Generation (RAG)**.  
-This project enables users to query PDF documents and receive accurate, context-aware responses using semantic search and local LLMs.
+An enterprise-grade Retrieval-Augmented Generation (RAG) system engineered for secure, offline document intelligence. 
 
----
+This project addresses critical bottlenecks in modern AI implementations: data privacy, LLM hallucinations, and retrieval accuracy. By executing the entire pipeline locally, it guarantees zero data leakage while providing verifiable, context-grounded answers.
 
-##  Key Features
+## Performance & Evaluation
+The system's reliability is mathematically validated using the **RAGAS (Retrieval Augmented Generation Assessment)** framework.
+* **Faithfulness Score: 1.0** (The model relies 100% on the provided document, successfully eliminating hallucinations).
+* **Answer Relevancy: ~0.76** (The generated responses accurately and directly address the user's queries).
 
--  PDF text extraction and preprocessing  
--  Smart chunking with overlap  
--  Semantic search using Sentence Transformers  
--  Fast similarity search with FAISS  
--  Local LLM integration using Ollama  
--  Context-aware, relevant answers  
+## System Architecture
+This pipeline moves beyond basic vector search by implementing a robust, multi-layered retrieval strategy:
 
----
+1. **Semantic Chunking:** Utilizes LangChain's `RecursiveCharacterTextSplitter` to preserve paragraph and sentence structure, ensuring context is not destroyed during the embedding phase.
+2. **Hybrid Indexing:** Simultaneously builds a Dense Vector Index (FAISS) for semantic understanding and a Sparse Keyword Index (BM25) for exact-match terminology retrieval.
+3. **Fused Retrieval:** Implements Reciprocal Rank Fusion (RRF) to merge and rank results from both indexes, optimizing overall context accuracy.
+4. **Grounded Generation:** Custom prompt engineering forces the local LLM to restrict its answers to the retrieved context and append page-level source citations.
 
-##  How It Works
+## Technical Stack
+* **Language:** Python
+* **LLM Engine:** Ollama (Phi-3 for generation, Llama-3 for evaluation)
+* **Vector Database:** FAISS (Facebook AI Similarity Search)
+* **Embeddings:** Sentence Transformers (`all-MiniLM-L6-v2`, `nomic-embed-text`)
+* **Frameworks & Libraries:** LangChain, rank-bm25, RAGAS, PyPDF
+* **Frontend:** Streamlit
 
-1. The PDF is parsed and converted into text  
-2. Text is split into overlapping chunks  
-3. Each chunk is converted into embeddings  
-4. FAISS indexes the embeddings for fast retrieval  
-5. User query is embedded and matched with relevant chunks  
-6. Retrieved context is passed to the LLM  
-7. LLM generates a final answer  
+## Installation & Quick Start
 
----
+**1. Clone the repository**
 
-##  Tech Stack
-
-- **Python**
-- **Sentence Transformers**
-- **FAISS**
-- **Ollama (Local LLM)**
-- **NumPy**
-
----
-
-##  Project Structure
-
-```
-├── data/               # Source PDF documents
-├── app.py              # Application logic & LLM orchestration
-├── utils.py            # RAG utility functions (Embeddings, FAISS, PDF)
-└── requirements.txt    # Project dependencies
-```
-
----
-
-##  Installation & Setup
-
-### 1. Clone the repository
-
-git clone https://github.com/BatraBhavye/ai-document-assistant.git
+```bash
+git clone [https://github.com/BatraBhavye/ai-document-assistant.git](https://github.com/BatraBhavye/ai-document-assistant.git)
 cd ai-document-assistant
+```
 
-### 2. Install dependencies
+**2. Install dependencies** 
 
+```Bash
 pip install -r requirements.txt
+```
 
-### 3. Install Ollama
+**3. Initialize Local Models**
+Ensure Ollama is installed on your system, then pull the required models:
 
-Download from: https://ollama.com
+```Bash
+ollama pull phi3
+ollama pull llama3
+ollama pull nomic-embed-text
+```
 
-Pull a model:
+**4. Run the Application**
 
-ollama run phi3
+```Bash
+streamlit run app.py
+```
+
+## Project Structure
+**app.py:** The main Streamlit application handling the frontend UI and session state.
+
+**utils.py:** The core engine handling PDF parsing, hybrid chunking, FAISS/BM25 indexing, and semantic search routing.
+
+**evaluate.py:** An automated testing script utilizing RAGAS to generate and record performance metrics.
+
+**evaluation_results.csv:** The output log of the system's faithfulness and relevancy scores.
 
 
-### 4. Run the application
-   
-python app.py
+## Future Roadmap
+**Multi-Document Interoperability:** Expanding the vector store to query across entire directories of PDFs simultaneously.
 
+**Optical Character Recognition (OCR):** Integrating Tesseract to handle scanned, non-searchable document formats.
 
----
-_Developed for efficient, private document intelligence._
+**REST API Mode:** Decoupling the Streamlit frontend to deploy the backend as a headless API for broader enterprise integration.
